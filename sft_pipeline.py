@@ -2,7 +2,7 @@
 import torch
 import json
 from datasets import Dataset
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorForSeq2Seq
 from peft import LoraConfig
 from trl import SFTTrainer, SFTConfig
 
@@ -28,9 +28,10 @@ for item in raw_data:
 
 dataset = Dataset.from_list(sft_data)
 
-# Model
+# Model & Tokenizer
 tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
 tokenizer.pad_token = tokenizer.eos_token
+tokenizer.model_max_length = 512  # ⭐ Buraya taşındı
 
 model = AutoModelForCausalLM.from_pretrained(
     model_id, 
@@ -46,7 +47,6 @@ peft_config = LoraConfig(
     task_type="CAUSAL_LM"
 )
 
-# ⭐ Düzeltilmiş config - max_seq_length kaldırıldı
 training_args = SFTConfig(
     output_dir=output_dir,
     num_train_epochs=2,
@@ -59,14 +59,13 @@ training_args = SFTConfig(
     gradient_checkpointing=True,
 )
 
-# ⭐ max_seq_length burada veriliyor
 trainer = SFTTrainer(
     model=model,
     train_dataset=dataset,
     processing_class=tokenizer,
     peft_config=peft_config,
     args=training_args,
-    max_seq_length=512,  # ← Buraya taşındı
+    # ⭐ max_seq_length yok, tokenizer.model_max_length kullanılacak
 )
 
 print("🚀 SFT EĞİTİMİ BAŞLIYOR...")
